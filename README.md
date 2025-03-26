@@ -4,33 +4,33 @@ This project is a Node.js application built with Fastify. Below is the structure
 
 ## Folder Structure
 
-src/
-├── .prettierrc
-├── package.json
-├── startup.js
-├── config/
-│ ├── .env.development
-│ ├── .env.production
-│ ├── .env.test
-│ └── config.js
-├── controllers/
-│ ├── eventController.js
-│ └── userController.js
-├── mock-server/
-│ ├── index.js
-│ └── mocks/
-│ └── user.json
-├── routes/
-│ ├── eventRoutes.js
-│ └── userRoutes.js
-├── services/
-│ ├── eventService.js
-│ └── userService.js
-└── utils/
-├── circuitBreaker.js
-├── configLoader.js
-├── logger.js
-└── responseWrapper.js
+    src/
+    ├── .prettierrc
+    ├── package.json
+    ├── startup.js
+    ├── config/
+    │ ├── .env.development
+    │ ├── .env.production
+    │ ├── .env.test
+    │ └── config.js
+    ├── controllers/
+    │ ├── eventController.js
+    │ └── userController.js
+    ├── mock-server/
+    │ ├── index.js
+    │ └── mocks/
+    │ └── user.json
+    ├── routes/
+    │ ├── eventRoutes.js
+    │ └── userRoutes.js
+    ├── services/
+    │ ├── eventService.js
+    │ └── userService.js
+    └── utils/
+    ├── circuitBreaker.js
+    ├── configLoader.js
+    ├── logger.js
+    └── responseWrapper.js
 
 ## Changes Made to the initial challenge:
 
