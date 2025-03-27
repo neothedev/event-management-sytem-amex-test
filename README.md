@@ -92,22 +92,22 @@ This project is a Node.js application built with Fastify. Below is the structure
     To improve performance of getEventsByUserId api, I have implemented promises.
 
     Previous code with for loop:
-
+```js
     for(let i = 0; i < userEvents.length; i++) {
         const event = await fetch('http://event.com/getEventById/' + userEvents[i]);
         const eventData = await event.json();
         eventArray.push(eventData);
     }
-
+```
     In the above for loop, url is being called in each iteration of the loop. This is limiting us to call one url once during a particular time.
-
+```js
      const eventPromises = userData.events.map((eventId) =>
       fetch(`http://event.com/getEventById/${eventId}`).then((response) =>
         response.json()
       )
     );
     const eventArray = await Promise.all(eventPromises);
-
+```
     In the above code i am mapping eventId to each promise so that they can run concurrently.
 
 ## TASK 3 IMPROVE RESILIENCY
@@ -116,73 +116,75 @@ I have implemented circuitBreaker to handle third task:
 
 its implemented in **cricuitBreaker.js** file in **utils** folder
 
-- ## Detect when the external service is consistently failing (3+ failures within a 30-second window)
+- ### Detect when the external service is consistently failing (3+ failures within a 30-second window)
 
-  Implemented the following functions to check if the external service is continously failing. Getting the failureWindow value from config. Every time a request fails, the timestamp is pushed into the failures array.
+Implemented the following functions to check if the external service is continously failing. Getting the failureWindow value from config. Every time a request fails, the timestamp is pushed into the failures array.
 
-  function recordFailure() {
-  const now = Date.now();
-  failures.push(now);
-  failures = failures.filter((ts) => now - ts <= failureWindow);
-  lastFailureTime = now;
-  }
+```js
+    function recordFailure() {
+      const now = Date.now();
+      failures.push(now);
+      failures = failures.filter((ts) => now - ts <= failureWindow);
+      lastFailureTime = now;
+    }
+    
+    function shouldOpenCircuit() {
+      return failures.length >= failureThreshold;
+    }
+```
 
-  function shouldOpenCircuit() {
-  return failures.length >= failureThreshold;
-  }
-
-  If the number of failures exceeds failureThreshold (getting this number from config. its set to 3 in this case), the circuit is opened by the following code.
-
-  if (shouldOpenCircuit()) {
-  state = 'OPEN';
-  log('Too many failures. Circuit is now OPEN.');
-  }
-
-- ## Implement a backoff/retry mechanism that reduces the load on the external service during failure periods
+If the number of failures exceeds failureThreshold (getting this number from config. its set to 3 in this case), the circuit is opened by the following code.
+```js
+    if (shouldOpenCircuit()) {
+      state = 'OPEN';
+      log('Too many failures. Circuit is now OPEN.');
+    }
+```
+- ### Implement a backoff/retry mechanism that reduces the load on the external service during failure periods
 
   To achieve this the backoff is caluculated in the following line.
-
-  backoff = Math.min(backoff \* 2, maxBackoff);
-
+```js
+      backoff = Math.min(backoff \* 2, maxBackoff);
+```
   If the service is failing and circuit is OPEN (consecutive 3 failures in 30 secs window) a testRequest to the external service will trigger only after a delay. That delay is backoff that is calculated above. If the test fails the backoff is doubled to reduce the load on the external service.
 
-- ## Gradually test if the service has recovered and resume normal operations when it's available again
-
-  async function tryRecovery() {
-  if (!testRequest || checkingRecovery || !isBackoffComplete()) return;
-
-  checkingRecovery = true;
-
-  const success = await testRequest();
-  if (success) {
-  failures = [];
-  backoff = initialBackoff;
-  state = 'CLOSED';
-  log('Recovery test passed. Circuit CLOSED.');
-  } else {
-  backoff = Math.min(backoff \* 2, maxBackoff);
-  log('Recovery test failed. Increasing backoff.');
-  }
-
-  checkingRecovery = false;
-  }
-
+- ### Gradually test if the service has recovered and resume normal operations when it's available again
+```js
+      async function tryRecovery() {
+      if (!testRequest || checkingRecovery || !isBackoffComplete()) return;
+    
+      checkingRecovery = true;
+    
+      const success = await testRequest();
+      if (success) {
+        failures = [];
+        backoff = initialBackoff;
+        state = 'CLOSED';
+        log('Recovery test passed. Circuit CLOSED.');
+      } else {
+        backoff = Math.min(backoff * 2, maxBackoff);
+        log('Recovery test failed. Increasing backoff.');
+      }
+    
+      checkingRecovery = false;
+      }
+```
   When the circuit is in OPEN state tryRecovery() function is called before each request.
   If backoff time is exceeded then a testRequest() is triggered to check if the service is back up or not.
   If service is up and running circuit is closed and all traffic resumes to normal state.
   If serviec is still failing circuit will be kept open and backoff is doubled.
 
-- ## Provide appropriate error responses to clients when the external service is unavailable
-
-  if (state === 'OPEN') {
-  await tryRecovery();
-  if (state === 'OPEN') {
-  return {
-  status: 503,
-  error: 'Service is temporarily unavailable due to repeated failures.',
-  message: `Circuit breaker is OPEN. Retry after backoff of ${Math.round(backoff / 1000)} seconds.`,
-  };
-  }
-  }
-
+- ### Provide appropriate error responses to clients when the external service is unavailable
+```js
+      if (state === 'OPEN') {
+          await tryRecovery();
+      if (state === 'OPEN') {
+          return {
+              status: 503,
+              error: 'Service is temporarily unavailable due to repeated failures.',
+              message: `Circuit breaker is OPEN. Retry after backoff of ${Math.round(backoff / 1000)} seconds.`,
+              };
+          }
+      }
+```
   When circuit is open the caller will get the explanation of the failure and also information about when they can retry.
